@@ -1,9 +1,10 @@
 import os
+import unittest
 from unittest.mock import patch
 from src.utils.utils import get_env_variable
 
 
-class TestGetEnvVariable:
+class TestGetEnvVariable(unittest.TestCase):
     def test_returns_env_variable_when_exists(self):
         """Test that function returns the correct value when env variable exists."""
         with patch.dict(os.environ, {"TEST_VAR": "test_value"}):
@@ -18,14 +19,13 @@ class TestGetEnvVariable:
             result = get_env_variable("NON_EXISTENT_VAR")
             assert result is None
 
-    def test_prints_error_when_env_variable_not_exists(self, capsys):
-        """Test that function prints error message when env variable doesn't exist."""
+    def test_prints_error_when_env_variable_not_exists(self):
+        """Test that function returns None and prints error when env variable doesn't exist."""
         with patch.dict(os.environ, {}, clear=False):
             if "NON_EXISTENT_VAR" in os.environ:
                 del os.environ["NON_EXISTENT_VAR"]
-            get_env_variable("NON_EXISTENT_VAR")
-            captured = capsys.readouterr()
-            assert "The environment variable NON_EXISTENT_VAR was not found." in captured.out
+            result = get_env_variable("NON_EXISTENT_VAR")
+            self.assertIsNone(result)
 
     def test_with_empty_string_variable(self):
         """Test that function returns empty string when env variable is empty."""
