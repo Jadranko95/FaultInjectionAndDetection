@@ -46,3 +46,82 @@ git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.c
 cd YOUR_REPO_NAME
 
 pipenv install --dev
+```
+
+### 2. Running Tests & Coverage
+
+Run the test suite inside the Pipenv virtual environment:
+
+```bash
+# Run all unit tests
+pipenv run pytest -v
+
+# Run tests with code coverage output
+pipenv run pytest --cov=src --cov-report=term-missing
+```
+
+### 3. CLI Usage
+
+Execute scenarios directly via the Command Line Interface (src/main.py):
+
+```bash
+# Race Condition: Observe lost updates
+pipenv run python -m src.main race --buggy --threads 10 --increments 1000
+pipenv run python -m src.main race --threads 10 --increments 1000
+
+# Deadlock: Observe thread deadlock timeout vs. ordered execution
+pipenv run python -m src.main deadlock --buggy --timeout 0.5
+pipenv run python -m src.main deadlock
+
+# Resource Contention: Measure latency difference between coarse vs fine locks
+pipenv run python -m src.main contention --buggy --threads 10
+pipenv run python -m src.main contention --threads 10
+```
+
+## 🐳 Running with Docker & Docker Compose
+
+No local Python installation required. The application and test suite are fully containerized using a multi-stage Dockerfile.
+
+```bash
+# Run the Pytest suite in an isolated container
+docker compose run --rm test
+
+# Run CLI scenarios via Docker Compose
+docker compose run --rm app race --buggy
+docker compose run --rm app deadlock --buggy --timeout 0.5
+docker compose run --rm app contention --buggy
+```
+
+## ⚙️ CI/CD Pipeline Architecture
+
+Every push and pull_request triggers an automated GitHub Actions workflow (.github/workflows/test.yml) executing two sequential jobs:
+
+```bash
+[ Git Push ] ──► Job 1: Code Quality (Black Check) ──► Job 2: Pytest Suite & Coverage Report ──► Docker Build Verification
+```
+
+## 📁 Repository Structure
+
+```text
+.
+├── .github/
+│   └── workflows/
+│       └── test.yml          # GitHub Actions CI/CD pipeline
+├── src/
+│   ├── scenarios/            # Concurrency fault implementations
+│   │   ├── fault_scenario.py # Abstract base class
+│   │   ├── race_condition_scenario.py
+│   │   ├── deadlock_scenario.py
+│   │   └── resource_contention_scenario.py
+│   └── main.py               # CLI Application entry point
+├── tests/                    # Pytest test suites
+│   ├── test_race_condition.py
+│   ├── test_deadlock.py
+│   └── test_resource_contention.py
+├── Dockerfile                # Multi-stage Docker configuration
+├── docker-compose.yml        # Orchestration for app and test services
+├── Pipfile                   # Pipenv dependency declaration
+├── Pipfile.lock              # Frozen dependency tree
+├── pytest.ini                # Pytest configuration
+└── README.md
+```

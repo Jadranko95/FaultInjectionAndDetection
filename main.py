@@ -1,6 +1,8 @@
 import argparse
+import sys
 from src.scenarios.deadlock_scenario import DeadlockScenario
 from src.scenarios.race_condition_scenario import RaceConditionScenario
+from src.scenarios.resource_contention_scenario import ResourceContentionScenario
 
 
 def run_race_condition(args: argparse.Namespace) -> None:
@@ -38,6 +40,23 @@ def run_deadlock(args: argparse.Namespace) -> None:
         )
 
 
+def run_resource_contention(args: argparse.Namespace) -> None:
+    print(f"\n[SCENARIO: Resource Contention] (buggy={args.buggy})")
+    scenario = ResourceContentionScenario(
+        threads_count=args.threads,
+        task_duration=args.duration,
+    )
+    elapsed = scenario.run(buggy=args.buggy)
+
+    print(f"Threads count : {args.threads}")
+    print(f"Elapsed time  : {elapsed:.4f} seconds")
+
+    if args.buggy:
+        print("RESULT: Coarse-grained locking caused thread queueing (high latency).")
+    else:
+        print("RESULT: Fine-grained locking enabled true concurrency (low latency).")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="CLI Runner for Concurrency Fault Injection and Detection Scenarios."
@@ -68,6 +87,21 @@ def main() -> None:
         "--timeout", type=float, default=1.0, help="Safety timeout in seconds (default: 1.0)"
     )
     deadlock_parser.set_defaults(func=run_deadlock)
+
+    # Subparser: Resource Contention
+    contention_parser = subparsers.add_parser(
+        "contention", help="Execute Resource Contention scenario"
+    )
+    contention_parser.add_argument(
+        "--buggy", action="store_true", help="Run buggy (coarse lock) implementation"
+    )
+    contention_parser.add_argument(
+        "--threads", type=int, default=10, help="Number of threads (default: 10)"
+    )
+    contention_parser.add_argument(
+        "--duration", type=float, default=0.05, help="Simulated I/O duration in seconds"
+    )
+    contention_parser.set_defaults(func=run_resource_contention)
 
     args = parser.parse_args()
     args.func(args)
