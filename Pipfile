@@ -8,6 +8,7 @@ pytest = "==9.1.1"
 PyHamcrest = "==2.1.0"
 
 [dev-packages]
+black = "==26.5.1"
 
 [requires]
 python_version = "3.13"

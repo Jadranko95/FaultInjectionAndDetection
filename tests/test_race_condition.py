@@ -1,6 +1,6 @@
+import pytest
 from hamcrest import assert_that, equal_to, less_than
 
-import pytest
 from src.scenarios.race_condition_scenario import RaceConditionScenario
 
 
