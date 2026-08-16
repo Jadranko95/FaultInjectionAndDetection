@@ -12,7 +12,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir pipenv
 
 COPY Pipfile Pipfile.lock ./
-RUN pipenv install --dev --deploy
+RUN pipenv install --dev
 
 # ==========================================
 # STAGE 2: Runtime
