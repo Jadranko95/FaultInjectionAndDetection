@@ -1,5 +1,7 @@
+import sys
 import threading
 import time
+import traceback
 from dataclasses import dataclass, field
 
 from .fault_scenario import FaultScenario
@@ -30,6 +32,14 @@ class DeadlockScenario(FaultScenario):
         self.timeout_seconds = timeout_seconds
         self.acc_a = Account(id=1, balance=1000.0)
         self.acc_b = Account(id=2, balance=1000.0)
+
+    @staticmethod
+    def _dump_thread_stacks():
+        """Prints current stack traces of all running threads for deadlock inspection."""
+        print("\n🚨 [DEADLOCK DETECTED] Thread Stack Dump:")
+        for thread_id, frame in sys._current_frames().items():
+            print(f"\n--- Thread ID: {thread_id} ---")
+            traceback.print_stack(frame)
 
     @staticmethod
     def _transfer(from_acc: Account, to_acc: Account, amount: float, buggy: bool):
@@ -79,5 +89,8 @@ class DeadlockScenario(FaultScenario):
         t2.join(timeout=self.timeout_seconds)
 
         is_deadlocked = t1.is_alive() or t2.is_alive()
+
+        if is_deadlocked:
+            self._dump_thread_stacks()
 
         return not is_deadlocked
