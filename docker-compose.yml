@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: concurrency-fault-detector:latest
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: concurrency-fault-detector:latest
+    entrypoint: ["pytest", "-v"]
+  
