@@ -13,12 +13,13 @@ A production-grade Python framework designed to simulate, detect, and remediate 
 
 The engine implements three classical concurrent computing bug patterns, providing both a **buggy** (faulty) and a **fixed** (remediated) execution mode for each scenario:
 
-| Scenario | Root Cause | Symptom | Remediation Pattern |
-| :--- | :--- | :--- | :--- |
-| **1. Race Condition** | Unsynchronized concurrent mutation of shared memory. | Data corruption / lost updates. | Synchronized execution via `threading.Lock`. |
-| **2. Deadlock** | Circular wait condition caused by inconsistent lock acquisition order across threads. | Indefinite execution freeze / thread hang. | **Global Lock Acquisition Ordering** by resource unique ID. |
-| **3. Resource Contention** | Coarse-grained lock scoping holding locks during long-running I/O tasks. | Lock saturation & high latency ($O(N)$ sequential delay). | **Minimal Critical Sections** (fine-grained lock scoping). |
-
+| Scenario | Variant | Root Cause | Expected Symptom | Remediation Pattern | CLI Command |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Race Condition** | Default | Unsynchronized concurrent state mutation of shared memory without atomic guards. | Data corruption & lost updates under high thread volume. | Mutual exclusion locking via `threading.Lock`. | `python -m src.main race --buggy` |
+| **Deadlock** | Default | Inconsistent lock acquisition order across threads accessing multiple resources. | Indefinite thread hanging / system Liveness failure. | **Global Lock Acquisition Ordering** by unique resource ID. | `python -m src.main deadlock --buggy` |
+| **Resource Contention** | `thread` | Over-scoped lock holding synchronization during long-running work/sleep. | Lock saturation & severe request latency ($O(N)$ sequential delay). | **Fine-grained locking** (minimal critical section). | `python -m src.main contention --variant thread --buggy` |
+| **Resource Contention** | `io` | Unbuffered concurrent disk file access with forced OS flushes per thread. | Disk I/O thrashing, high system write overhead & latency spikes. | **Producer-Consumer Pattern** with background worker and async `Queue`. | `python -m src.main contention --variant io --buggy` |
+| **Resource Contention** | `cpu` | Multithreaded execution of CPU-bound operations bound by Python's GIL. | Context switching overhead & CPU core underutilization. | **Process Pool Execution** (`ProcessPoolExecutor`) bypassing the GIL. | `python -m src.main contention --variant cpu --buggy` |
 ---
 
 ## 🛠 Tech Stack & Tools
@@ -65,17 +66,25 @@ pipenv run pytest --cov=src --cov-report=term-missing
 Execute scenarios directly via the Command Line Interface (src/main.py):
 
 ```bash
-# Race Condition: Observe lost updates
+# 1. Race Condition
 pipenv run python -m src.main race --buggy --threads 10 --increments 1000
 pipenv run python -m src.main race --threads 10 --increments 1000
 
-# Deadlock: Observe thread deadlock timeout vs. ordered execution
+# 2. Deadlock (Timeout guards prevent permanent hanging during test runs)
 pipenv run python -m src.main deadlock --buggy --timeout 0.5
 pipenv run python -m src.main deadlock
 
-# Resource Contention: Measure latency difference between coarse vs fine locks
-pipenv run python -m src.main contention --buggy --threads 10
-pipenv run python -m src.main contention --threads 10
+# 3. Resource Contention - Thread (Hot Lock)
+pipenv run python -m src.main contention --variant thread --buggy
+pipenv run python -m src.main contention --variant thread
+
+# 4. Resource Contention - I/O (Disk Thrashing)
+pipenv run python -m src.main contention --variant io --buggy
+pipenv run python -m src.main contention --variant io
+
+# 5. Resource Contention - CPU (GIL Thrashing)
+pipenv run python -m src.main contention --variant cpu --buggy
+pipenv run python -m src.main contention --variant cpu
 ```
 
 ## 🐳 Running with Docker & Docker Compose
@@ -94,11 +103,13 @@ docker compose run --rm app contention --buggy
 
 ## ⚙️ CI/CD Pipeline Architecture
 
-Every push and pull_request triggers an automated GitHub Actions workflow (.github/workflows/test.yml) executing two sequential jobs:
+Automated checks run on every push and pull_request via GitHub Actions (.github/workflows/test.yml):
 
-```bash
-[ Git Push ] ──► Job 1: Code Quality (Black Check) ──► Job 2: Pytest Suite & Coverage Report ──► Docker Build Verification
-```
+1. Code Formatting: Validated via black --check.
+
+2. Unit Tests: Verified via pytest with automatic Step Summary markdown reports.
+
+3. Docker Build: Verifies containerization integrity.
 
 ## 📁 Repository Structure
 
