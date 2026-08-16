@@ -44,7 +44,13 @@ class RaceConditionScenario(FaultScenario):
 
         try:
             for _ in range(self.threads_count):
-                thread = threading.Thread(target=self._worker, args=(buggy, barrier,))
+                thread = threading.Thread(
+                    target=self._worker,
+                    args=(
+                        buggy,
+                        barrier,
+                    ),
+                )
                 threads.append(thread)
                 thread.start()
 
