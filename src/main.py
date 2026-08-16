@@ -8,9 +8,7 @@ from src.scenarios.resource_contention_scenario import ResourceContentionScenari
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Concurrency Fault Injection Engine"
-    )
+    parser = argparse.ArgumentParser(description="Concurrency Fault Injection Engine")
     parser.add_argument(
         "scenario",
         choices=["race", "deadlock", "contention"],
