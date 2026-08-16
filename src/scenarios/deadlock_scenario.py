@@ -2,7 +2,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 
-from scenarios.fault_scenario import FaultScenario
+from .fault_scenario import FaultScenario
 
 
 @dataclass
