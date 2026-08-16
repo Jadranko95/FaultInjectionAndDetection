@@ -27,7 +27,7 @@ class DeadlockScenario(FaultScenario):
     """
 
     def __init__(self, timeout_seconds: float = 1.0):
-        self. timeout_seconds = timeout_seconds
+        self.timeout_seconds = timeout_seconds
         self.acc_a = Account(id=1, balance=1000.0)
         self.acc_b = Account(id=2, balance=1000.0)
 
@@ -42,9 +42,7 @@ class DeadlockScenario(FaultScenario):
         else:
             # Block account with lower ID
             first_acc, second_acc = (
-                (from_acc, to_acc)
-                if from_acc.id < to_acc.id
-                else (to_acc, from_acc)
+                (from_acc, to_acc) if from_acc.id < to_acc.id else (to_acc, from_acc)
             )
 
             with first_acc.lock:
@@ -64,10 +62,14 @@ class DeadlockScenario(FaultScenario):
         self.acc_b.balance = 1000.0
 
         t1 = threading.Thread(
-            target=self._transfer, args=(self.acc_a, self.acc_b, 100.0, buggy), daemon=True
+            target=self._transfer,
+            args=(self.acc_a, self.acc_b, 100.0, buggy),
+            daemon=True,
         )
         t2 = threading.Thread(
-            target=self._transfer, args=(self.acc_b, self.acc_a, 50.0, buggy), daemon=True
+            target=self._transfer,
+            args=(self.acc_b, self.acc_a, 50.0, buggy),
+            daemon=True,
         )
 
         t1.start()
