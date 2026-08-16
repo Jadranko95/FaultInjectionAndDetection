@@ -19,9 +19,7 @@ class ResourceContentionScenario(FaultScenario):
     take N times longer than a single thread execution.
     """
 
-    def __init__(
-        self, threads_count: int = 10, task_duration: float = 0.05
-    ) -> None:
+    def __init__(self, threads_count: int = 10, task_duration: float = 0.05) -> None:
         self.threads_count = threads_count
         self.task_duration = task_duration
         self.processed_items = 0
@@ -60,9 +58,7 @@ class ResourceContentionScenario(FaultScenario):
         start_time = time.perf_counter()
 
         for _ in range(self.threads_count):
-            thread = threading.Thread(
-                target=self._worker, args=(buggy,), daemon=True
-            )
+            thread = threading.Thread(target=self._worker, args=(buggy,), daemon=True)
             threads.append(thread)
             thread.start()
 

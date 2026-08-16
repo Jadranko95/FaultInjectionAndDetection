@@ -20,10 +20,12 @@ class TestResourceContentionScenario:
 
         # Expected execution time should be close to a single task duration (~0.05s - 0.15s)
         # We assert it finishes in less than half of sequential time (< 0.25s)
-        max_acceptable_time = (
-            scenario.threads_count * scenario.task_duration
-        ) / 2
-        assert_that(elapsed_time, less_than(max_acceptable_time), f"Optimized execution was too slow: {elapsed_time:.2f}s")
+        max_acceptable_time = (scenario.threads_count * scenario.task_duration) / 2
+        assert_that(
+            elapsed_time,
+            less_than(max_acceptable_time),
+            f"Optimized execution was too slow: {elapsed_time:.2f}s",
+        )
 
     def test_buggy_implementation_exhibits_lock_contention(self, scenario):
         """
@@ -33,4 +35,8 @@ class TestResourceContentionScenario:
 
         # Buggy execution forces threads to queue up sequentially (>= 0.50s)
         min_expected_time = scenario.threads_count * scenario.task_duration * 0.8
-        assert_that(elapsed_time, greater_than_or_equal_to(min_expected_time), f"Buggy version did not exhibit contention: {elapsed_time:.2f}s")
+        assert_that(
+            elapsed_time,
+            greater_than_or_equal_to(min_expected_time),
+            f"Buggy version did not exhibit contention: {elapsed_time:.2f}s",
+        )
