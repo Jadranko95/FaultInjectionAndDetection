@@ -22,6 +22,32 @@ The engine implements three classical concurrent computing bug patterns, providi
 | **Resource Contention** | `cpu` | Multithreaded execution of CPU-bound operations bound by Python's GIL. | Context switching overhead & CPU core underutilization. | **Process Pool Execution** (`ProcessPoolExecutor`) bypassing the GIL. | `python -m src.main contention --variant cpu --buggy` |
 ---
 
+---
+
+## 🔬 Analysis Methods & Diagnostic Tools
+
+This framework integrates specialized diagnostics for each concurrency fault type:
+
+* 💥 **Race Conditions / Data Hazards:**
+  * **Deterministic Scheduling:** Uses `threading.Barrier` to synchronize all worker threads, releasing them simultaneously at the exact same instant to reliably trigger race conditions.
+  * **Stress Testing:** Configurable thread volume (`--threads`) and iteration counts (`--increments`).
+
+* 🔒 **Deadlocks:**
+  * **Timeout Watchdog:** Prevents permanent pipeline hanging by interrupting blocked threads after a configured threshold (`--timeout`).
+  * **Thread Dump / Stack Analysis:** Captures and prints stack traces (`sys._current_frames()`) for all running threads upon deadlock detection to pinpoint exact lock acquisition sites.
+  * **Lock-Order Validation:** Enforces strict global lock sorting (`sorted([res1, res2], key=lambda r: r.id)`).
+
+* ⚡ **Resource Contention:**
+  * **Built-in Profiler:** Enable `cProfile` performance analysis via the `--profile` flag to inspect top cumulative execution calls and lock waiting times.
+  * **Latency & Throughput Benchmarking:** Precise high-resolution timing (`time.perf_counter()`) measuring execution duration across variants.
+  * **Load Generators:** Adjustable thread counts and write iterations (`--variant [thread|io|cpu]`).
+
+* 🧪 **Regression Detection:**
+  * **Automated CI Integration:** Pre-configured GitHub Actions workflow executing Pytest suites on every push/PR.
+  * **Baselines & Thresholds:** Isolated unit tests covering both buggy and fixed execution paths with precise timing assertions.
+
+---
+
 ## 🛠 Tech Stack & Tools
 
 * **Language:** Python 3.13
@@ -66,25 +92,25 @@ pipenv run pytest --cov=src --cov-report=term-missing
 Execute scenarios directly via the Command Line Interface (src/main.py):
 
 ```bash
-# 1. Race Condition
-pipenv run python -m src.main race --buggy --threads 10 --increments 1000
-pipenv run python -m src.main race --threads 10 --increments 1000
+# 1. Race Condition (with deterministic Barrier scheduling)
+PYTHONPATH=. python -m src.main race --buggy --threads 10 --increments 1000
+PYTHONPATH=. python -m src.main race --threads 10 --increments 1000
 
-# 2. Deadlock (Timeout guards prevent permanent hanging during test runs)
-pipenv run python -m src.main deadlock --buggy --timeout 0.5
-pipenv run python -m src.main deadlock
+# 2. Deadlock (with Watchdog & Stack Trace Dump)
+PYTHONPATH=. python -m src.main deadlock --buggy --timeout 0.5
+PYTHONPATH=. python -m src.main deadlock
 
-# 3. Resource Contention - Thread (Hot Lock)
-pipenv run python -m src.main contention --variant thread --buggy
-pipenv run python -m src.main contention --variant thread
+# 3. Resource Contention - Thread (Hot Lock Saturation)
+PYTHONPATH=. python -m src.main contention --variant thread --buggy --profile
+PYTHONPATH=. python -m src.main contention --variant thread
 
 # 4. Resource Contention - I/O (Disk Thrashing)
-pipenv run python -m src.main contention --variant io --buggy
-pipenv run python -m src.main contention --variant io
+PYTHONPATH=. python -m src.main contention --variant io --buggy
+PYTHONPATH=. python -m src.main contention --variant io
 
 # 5. Resource Contention - CPU (GIL Thrashing)
-pipenv run python -m src.main contention --variant cpu --buggy
-pipenv run python -m src.main contention --variant cpu
+PYTHONPATH=. python -m src.main contention --variant cpu --buggy --profile
+PYTHONPATH=. python -m src.main contention --variant cpu
 ```
 
 ## 🐳 Running with Docker & Docker Compose
@@ -98,7 +124,7 @@ docker compose run --rm test
 # Run CLI scenarios via Docker Compose
 docker compose run --rm app race --buggy
 docker compose run --rm app deadlock --buggy --timeout 0.5
-docker compose run --rm app contention --buggy
+docker compose run --rm app contention --variant thread --buggy --profile
 ```
 
 ## ⚙️ CI/CD Pipeline Architecture
