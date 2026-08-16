@@ -1,69 +1,167 @@
+import concurrent.futures
+import math
+import os
+import queue
+import tempfile
 import threading
 import time
-from typing import Any
 
 from .fault_scenario import FaultScenario
 
 
+def _cpu_heavy_task(n: int = 10_000_000) -> float:
+    """CPU-bound task: Calculate prime/square root sums."""
+    return sum(math.sqrt(i) for i in range(n))
+
+
 class ResourceContentionScenario(FaultScenario):
     """
-    Resource Contention: Severe latency degrade caused by holding a coarse-grained lock
-    during long-running, non-critical operations (e.g., I/O or heavy computation).
-
-    Root Cause:
-    Holding a shared lock while performing time-consuming tasks (simulated I/O) forces
-    all threads to queue up and execute sequentially instead of concurrently.
-
-    Symptom:
-    Extreme thread contention, high latency, and severe performance drop where N threads
-    take N times longer than a single thread execution.
+    Resource Contention Engine covering 3 distinct variants:
+    1. Thread Contention: Heavy lock saturation/over-contention vs fine-grained locking.
+    2. I/O Contention: Direct concurrent unbuffered disk access vs Queued/Batched I/O.
+    3. CPU Contention: Multi-threaded CPU-bound work (GIL thrashing) vs Multiprocessing.
     """
 
-    def __init__(self, threads_count: int = 10, task_duration: float = 0.05) -> None:
-        self.threads_count = threads_count
-        self.task_duration = task_duration
-        self.processed_items = 0
-        self.lock = threading.Lock()
+    def __init__(self, variant: str = "thread") -> None:
+        if variant not in ("thread", "io", "cpu"):
+            raise ValueError("Variant must be one of: 'thread', 'io', 'cpu'")
+        self.variant = variant
 
+    # ------------------------------------------------------------------
+    # VARIANT 1: Thread Contention (Hot Lock Saturation)
+    # ------------------------------------------------------------------
     @staticmethod
-    def _simulate_io_bound_work() -> int:
-        """Simulate slow external resource access or computation."""
-        time.sleep(0.05)
-        return 42
+    def _run_thread_contention(buggy: bool) -> float:
+        threads_count = 10
+        lock = threading.Lock()
+        counter = 0
 
-    def _worker(self, buggy: bool) -> None:
-        if buggy:
-            # BUGGY VERSION: Holding the lock across the entire long-running operation.
-            # Forces sequential execution of all threads.
-            with self.lock:
-                result = self._simulate_io_bound_work()
-                self.processed_items += result
-        else:
-            # FIXED VERSION: Minimize critical section duration.
-            # Perform slow I/O out-of-lock, acquire lock ONLY to update shared state.
-            result = self._simulate_io_bound_work()
-            with self.lock:
-                self.processed_items += result
+        def worker():
+            nonlocal counter
+            if buggy:
+                # BUGGY: Coarse lock held during simulated I/O / work
+                with lock:
+                    time.sleep(0.02)
+                    counter += 1
+            else:
+                # FIXED: Fine-grained lock scope
+                time.sleep(0.02)
+                with lock:
+                    counter += 1
 
-    def run(self, buggy: bool) -> float:
-        """
-        Executes the scenario and returns total elapsed execution time in seconds.
+        start_time = time.perf_counter()
+        threads = [
+            threading.Thread(target=worker, daemon=True) for _ in range(threads_count)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
-        :param buggy: If True, uses coarse-grained locking. If False, uses minimal critical section.
-        :return: Execution time in seconds.
-        """
-        self.processed_items = 0
-        threads = []
+        return time.perf_counter() - start_time
+
+    # ------------------------------------------------------------------
+    # VARIANT 2: I/O Contention (Disk I/O Thrashing)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _run_io_contention(buggy: bool) -> float:
+        threads_count = 20
+        iterations = 200
+
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False) as tmp_file:
+            file_path = tmp_file.name
 
         start_time = time.perf_counter()
 
-        for _ in range(self.threads_count):
-            thread = threading.Thread(target=self._worker, args=(buggy,), daemon=True)
-            threads.append(thread)
-            thread.start()
+        if buggy:
+            # BUGGY: Competing threads opening, writing, and flushing to disk directly
+            file_lock = threading.Lock()
 
-        for thread in threads:
-            thread.join()
+            def io_worker(thread_id: int):
+                for i in range(iterations):
+                    with file_lock:
+                        with open(file_path, "a") as f:
+                            f.write(f"Thread-{thread_id} line {i}\n")
+                            f.flush()  # Force OS disk flush
 
-        elapsed_time = time.perf_counter() - start_time
-        return elapsed_time
+            threads = [
+                threading.Thread(target=io_worker, args=(i,), daemon=True)
+                for i in range(threads_count)
+            ]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+        else:
+            # FIXED: Single dedicated I/O background worker consuming from Queue
+            io_queue = queue.Queue()
+
+            def disk_writer():
+                with open(file_path, "a") as f:
+                    while True:
+                        item = io_queue.get()
+                        if item is None:
+                            break
+                        f.write(item)
+                        io_queue.task_done()
+
+            writer_thread = threading.Thread(target=disk_writer, daemon=True)
+            writer_thread.start()
+
+            def producer_worker(thread_id: int):
+                for i in range(iterations):
+                    io_queue.put(f"Thread-{thread_id} line {i}\n")
+
+            producers = [
+                threading.Thread(target=producer_worker, args=(i,), daemon=True)
+                for i in range(threads_count)
+            ]
+            for p in producers:
+                p.start()
+            for p in producers:
+                p.join()
+
+            io_queue.put(None)  # Sentinel to stop writer
+            writer_thread.join()
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        return time.perf_counter() - start_time
+
+    # ------------------------------------------------------------------
+    # VARIANT 3: CPU Contention (GIL Thrashing vs Multiprocessing)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _run_cpu_contention(buggy: bool) -> float:
+        tasks = [3_000_000] * 4
+        start_time = time.perf_counter()
+
+        if buggy:
+            # BUGGY: Using threading for CPU-bound tasks causes GIL contention overhead
+            threads = [
+                threading.Thread(target=_cpu_heavy_task, args=(n,), daemon=True)
+                for n in tasks
+            ]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        else:
+            # FIXED: Bypassing GIL using ProcessPoolExecutor across multicore CPUs
+            with concurrent.futures.ProcessPoolExecutor(
+                max_workers=os.cpu_count()
+            ) as executor:
+                list(executor.map(_cpu_heavy_task, tasks))
+
+        return time.perf_counter() - start_time
+
+    def run(self, buggy: bool) -> float:
+        if self.variant == "thread":
+            return self._run_thread_contention(buggy)
+        elif self.variant == "io":
+            return self._run_io_contention(buggy)
+        elif self.variant == "cpu":
+            return self._run_cpu_contention(buggy)
+        return 0.0
