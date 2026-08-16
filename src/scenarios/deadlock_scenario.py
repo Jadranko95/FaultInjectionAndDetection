@@ -35,11 +35,16 @@ class DeadlockScenario(FaultScenario):
 
     @staticmethod
     def _dump_thread_stacks():
-        """Prints current stack traces of all running threads for deadlock inspection."""
+        current_thread_id = threading.get_ident()
         print("\n🚨 [DEADLOCK DETECTED] Thread Stack Dump:")
+
         for thread_id, frame in sys._current_frames().items():
+            if thread_id == current_thread_id:
+                continue
+
             print(f"\n--- Thread ID: {thread_id} ---")
-            traceback.print_stack(frame)
+            stack_trace = "".join(traceback.format_stack(frame)).strip()
+            print(stack_trace if stack_trace else "  (No stack trace available)")
 
     @staticmethod
     def _transfer(from_acc: Account, to_acc: Account, amount: float, buggy: bool):
