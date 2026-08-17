@@ -1,9 +1,7 @@
 # ⚡ Concurrency Fault Injection & Detection Engine
 
-[![CI/CD Pipeline](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/actions/workflows/test.yml/badge.svg)](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/actions)
 ![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)
 ![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 A production-grade Python framework designed to simulate, detect, and remediate fundamental multithreading concurrency faults. This project demonstrates real-world concurrent execution bugs, thread liveness issues, performance bottlenecks, and deterministic unit testing in Python 3.13.
 
