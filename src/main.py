@@ -2,8 +2,8 @@ import argparse
 import cProfile
 import pstats
 
-from src.scenarios.race_condition_scenario import RaceConditionScenario
 from src.scenarios.deadlock_scenario import DeadlockScenario
+from src.scenarios.race_condition_scenario import RaceConditionScenario
 from src.scenarios.resource_contention_scenario import ResourceContentionScenario
 
 

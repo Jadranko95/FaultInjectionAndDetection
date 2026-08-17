@@ -7,7 +7,7 @@ from src.scenarios.deadlock_scenario import DeadlockScenario
 class TestDeadlockScenario:
     @pytest.fixture
     def scenario(self):
-        return DeadlockScenario(timeout_seconds=0.5)
+        return DeadlockScenario(timeout_seconds=0.5, balance_a=1000.0, balance_b=1000.0)
 
     def test_fixed_implementation_completes_without_deadlock(self, scenario):
         """

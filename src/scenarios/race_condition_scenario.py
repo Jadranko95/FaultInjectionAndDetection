@@ -9,7 +9,6 @@ class RaceConditionScenario(FaultScenario):
     Class for managing scenarios of the RaceCondition class.
 
     Scenario: Many threads modify the same variable (counter) without synchronization.
-    In Python the operation '+=' is not fully atomic, it contains bytecode instructions.
     Symptom: The counter value is non-deterministic.
     """
 

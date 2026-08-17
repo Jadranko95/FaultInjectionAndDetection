@@ -3,6 +3,7 @@ import threading
 import time
 import traceback
 from dataclasses import dataclass, field
+from uuid import uuid4
 
 from .fault_scenario import FaultScenario
 
@@ -28,10 +29,15 @@ class DeadlockScenario(FaultScenario):
     The application hangs indefinitely, and threads remain stuck waiting for lock acquisition.
     """
 
-    def __init__(self, timeout_seconds: float = 1.0):
+    def __init__(
+        self,
+        timeout_seconds: float = 1.0,
+        balance_a: float = 0.0,
+        balance_b: float = 0.0,
+    ):
         self.timeout_seconds = timeout_seconds
-        self.acc_a = Account(id=1, balance=1000.0)
-        self.acc_b = Account(id=2, balance=1000.0)
+        self.acc_a = Account(id=uuid4().int, balance=balance_a)
+        self.acc_b = Account(id=uuid4().int, balance=balance_b)
 
     @staticmethod
     def _dump_thread_stacks():
@@ -72,9 +78,6 @@ class DeadlockScenario(FaultScenario):
         :param buggy: If True, uses inconsistent lock ordering. If False, uses ordered locks.
         :return: True if transfers completed successfully, False if a deadlock occurred (timeout).
         """
-
-        self.acc_a.balance = 1000.0
-        self.acc_b.balance = 1000.0
 
         t1 = threading.Thread(
             target=self._transfer,
